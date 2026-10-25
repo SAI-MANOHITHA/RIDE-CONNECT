@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RideConnect – Smart Community Ride Sharing</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- FontAwesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- App Custom Styles -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- Top Demo Walkthrough Banner -->
+  <aside class="demo-banner" aria-label="Demo announcement">
+    <div class="demo-banner-content">
+      <span class="demo-banner-pill">⚡ Hackathon Demo</span>
+      <span><strong>Scenario:</strong> College student Aarav needs a ride ➔ Driver Rahul is commuting along the same route!</span>
+    </div>
+    <div class="demo-actions">
+      <button id="demo-scenario-btn" class="btn-demo-scenario" title="Auto-run student ride matching demonstration">
+        <i class="fa-solid fa-graduation-cap"></i> Run Student Demo Scenario
+      </button>
+      <button id="demo-reset-btn" class="btn-demo-reset" title="Reset all data to seed state">
+        <i class="fa-solid fa-rotate-left"></i> Reset Seed Data
+      </button>
+    </div>
+  </aside>
+
+  <!-- Header & Navigation -->
+  <header class="app-header">
+    <div class="header-container">
+      
+      <!-- Brand Logo -->
+      <div class="brand-section">
+        <div class="brand-logo-icon">
+          <i class="fa-solid fa-car-tunnel"></i>
+        </div>
+        <div class="brand-info">
+          <h1>RideConnect</h1>
+          <div class="tagline">Smart Community Ride Sharing</div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs (Desktop) -->
+      <nav class="nav-tabs" aria-label="Main Navigation">
+        <button class="tab-btn active" data-tab="find-ride">
+          <i class="fa-solid fa-magnifying-glass-location"></i> Find a Ride
+        </button>
+        <button class="tab-btn" data-tab="offer-ride">
+          <i class="fa-solid fa-plus-circle"></i> Offer a Ride
+        </button>
+        <button class="tab-btn" data-tab="dashboard">
+          <i class="fa-solid fa-table-columns"></i> Dashboard
+        </button>
+        <button class="tab-btn" data-tab="transit">
+          <i class="fa-solid fa-bus"></i> Public Transit
+        </button>
+        <button class="tab-btn" data-tab="safety">
+          <i class="fa-solid fa-shield-halved"></i> Safety Hub
+        </button>
+      </nav>
+
+      <!-- Right Header Actions -->
+      <div class="header-actions">
+        <!-- AI Travel Assistant Button (Google Gemini) -->
+        <button id="ai-assistant-btn" class="btn-icon" title="RideConnect AI Travel Assistant (Google Gemini)" aria-label="AI Travel Assistant" style="color: #4f46e5; background: #eef2ff; border-color: #c7d2fe;">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+        </button>
+
+        <!-- Firebase Status Modal Trigger -->
+        <button id="firebase-settings-btn" class="btn-icon" title="Firebase Cloud Sync Settings" aria-label="Firebase Settings">
+          <i class="fa-solid fa-cloud"></i>
+        </button>
+
+        <!-- Notification Bell -->
+        <button id="notif-btn" class="btn-icon" title="Notifications" aria-label="Notifications">
+          <i class="fa-regular fa-bell"></i>
+          <span id="notif-badge-count" class="notification-count" style="display: none;">0</span>
+        </button>
+
+        <!-- Emergency SOS Button -->
+        <button id="sos-btn" class="btn-sos" title="Emergency Assistance & SOS Alert">
+          <i class="fa-solid fa-triangle-exclamation"></i> SOS
+        </button>
+
+        <!-- Active User Profile Switcher -->
+        <div id="user-switch-btn" class="user-switch-pill" title="Click to switch between Student, Driver or Commuter">
+          <img id="header-user-avatar" src="" alt="User Avatar" class="user-avatar-sm" />
+          <div class="user-name-role">
+            <span id="header-user-name" class="user-name-text">Loading...</span>
+            <span id="header-user-role" class="user-role-badge">Passenger</span>
+          </div>
+          <i class="fa-solid fa-chevron-down" style="font-size: 0.7rem; color: #64748b;"></i>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="app-main">
+
+    <!-- Active Confirmed Ride Floating Banner (Shows when two-way agreement is confirmed) -->
+    <section id="active-confirmed-banner-container" style="display: none;" aria-label="Active Confirmed Ride"></section>
+
+    <!-- Main Grid Layout -->
+    <div class="app-grid">
+
+      <!-- Left Column: Primary Tab Views -->
+      <section class="left-panel">
+
+        <!-- VIEW 1: Find a Ride (Passenger Flow) -->
+        <div id="view-find-ride" class="tab-view-content">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title">
+                  <i class="fa-solid fa-magnifying-glass-location" style="color: var(--primary-600);"></i>
+                  Find a Community Ride
+                </h2>
+                <div class="card-subtitle">Connect with verified neighbours and campus commuters going your way.</div>
+              </div>
+            </div>
+
+            <!-- Find Ride Search Form -->
+            <form id="find-ride-form">
+              <div class="form-group">
+                <label class="form-label" for="search-pickup">Pickup Corridor / Hub</label>
+                <div class="input-with-icon">
+                  <i class="fa-solid fa-location-crosshairs input-icon" style="color: #10b981;"></i>
+                  <select id="search-pickup" class="form-control" required></select>
+                </div>
+                <div class="quick-chips">
+                  <button type="button" class="chip-btn" data-quick-pickup="loc-1">📍 Koramangala 4th Block</button>
+                  <button type="button" class="chip-btn" data-quick-pickup="loc-7">📍 Silk Board Junction</button>
+                  <button type="button" class="chip-btn" data-quick-pickup="loc-4">📍 Indiranagar Metro</button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="search-destination">Destination</label>
+                <div class="input-with-icon">
+                  <i class="fa-solid fa-flag-checkered input-icon" style="color: #ef4444;"></i>
+                  <select id="search-destination" class="form-control" required></select>
+                </div>
+                <div class="quick-chips">
+                  <button type="button" class="chip-btn" data-quick-dest="loc-2">🎓 City Tech University</button>
+                  <button type="button" class="chip-btn" data-quick-dest="loc-3">🏢 Electronic City Phase 1</button>
+                  <button type="button" class="chip-btn" data-quick-dest="loc-6">💼 EcoSpace Tech Park</button>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="search-time">Departure Time</label>
+                  <div class="input-with-icon">
+                    <i class="fa-regular fa-clock input-icon"></i>
+                    <input type="time" id="search-time" class="form-control" value="08:30" required />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="search-seats">Seats Needed</label>
+                  <div class="input-with-icon">
+                    <i class="fa-solid fa-user-group input-icon"></i>
+                    <select id="search-seats" class="form-control">
+                      <option value="1" selected>1 Seat</option>
+                      <option value="2">2 Seats</option>
+                      <option value="3">3 Seats</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-block">
+                <i class="fa-solid fa-magnifying-glass"></i> Find Smart Route Matches
+              </button>
+            </form>
+          </div>
+
+          <!-- Matched Rides Section -->
+          <div style="margin-top: 24px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--slate-900);">
+                Available Route Matches
+              </h3>
+              <span id="match-count-badge" class="simulated-label-badge">0 available</span>
+            </div>
+
+            <!-- Matched Rides Container -->
+            <div id="matched-rides-container" class="matched-rides-list">
+              <!-- Dynamically populated by App.renderMatchedRides() -->
+            </div>
+          </div>
+        </div>
+
+        <!-- VIEW 2: Offer a Ride (Driver Flow) -->
+        <div id="view-offer-ride" class="tab-view-content" style="display: none;">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title">
+                  <i class="fa-solid fa-car-side" style="color: var(--primary-600);"></i>
+                  Offer a Community Ride
+                </h2>
+                <div class="card-subtitle">Driving alone with empty seats? Offset fuel costs and help your community.</div>
+              </div>
+            </div>
+
+            <form id="offer-ride-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="offer-origin">Starting Point</label>
+                  <div class="input-with-icon">
+                    <i class="fa-solid fa-location-dot input-icon" style="color: #10b981;"></i>
+                    <select id="offer-origin" class="form-control" required></select>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="offer-destination">Final Destination</label>
+                  <div class="input-with-icon">
+                    <i class="fa-solid fa-flag-checkered input-icon" style="color: #ef4444;"></i>
+                    <select id="offer-destination" class="form-control" required></select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group" style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px;">
+                <label class="form-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" id="offer-waypoint-campus" checked style="width: 18px; height: 18px;" />
+                  <span><strong>Add Student Campus Corridor Stop</strong> (City Tech University Gate 2)</span>
+                </label>
+                <div style="font-size: 0.75rem; color: #64748b; margin-left: 26px;">
+                  Increases your route match score for students going to morning classes with zero significant detour.
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="offer-time">Departure Time</label>
+                  <div class="input-with-icon">
+                    <i class="fa-regular fa-clock input-icon"></i>
+                    <input type="time" id="offer-time" class="form-control" value="08:30" required />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="offer-seats">Available Seats</label>
+                  <div class="input-with-icon">
+                    <i class="fa-solid fa-chair input-icon"></i>
+                    <select id="offer-seats" class="form-control">
+                      <option value="1">1 Seat</option>
+                      <option value="2">2 Seats</option>
+                      <option value="3" selected>3 Seats</option>
+                      <option value="4">4 Seats</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="offer-vehicle">Vehicle Model</label>
+                  <div class="input-with-icon">
+                    <i class="fa-solid fa-car input-icon"></i>
+                    <input type="text" id="offer-vehicle" class="form-control" placeholder="e.g. Honda City (White)" value="Honda City (Pearl White)" required />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="offer-plate">License Plate</label>
+                  <div class="input-with-icon">
+                    <i class="fa-solid fa-id-card input-icon"></i>
+                    <input type="text" id="offer-plate" class="form-control" placeholder="e.g. KA-01-MJ-4521" value="KA-01-MJ-4521" required />
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="offer-contribution">Travel Fuel Contribution (per seat)</label>
+                <div class="input-with-icon">
+                  <i class="fa-solid fa-indian-rupee-sign input-icon"></i>
+                  <input type="number" id="offer-contribution" class="form-control" value="45" min="20" max="150" required />
+                </div>
+                <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">
+                  Fair community cost-sharing (non-commercial, covers direct fuel & toll share).
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="offer-notes">Driver Notes / Community Preferences</label>
+                <input type="text" id="offer-notes" class="form-control" placeholder="e.g. AC on, soft music, luggage in boot" value="Daily morning commute. Safe and punctual ride. Air conditioned." />
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-block">
+                <i class="fa-solid fa-plus-circle"></i> Publish Community Ride
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- VIEW 3: Dashboard & History -->
+        <div id="view-dashboard" class="tab-view-content" style="display: none;">
+          <!-- Impact Stats Row -->
+          <div id="dashboard-stats-row" class="stats-row">
+            <!-- Dynamically populated by App.renderDashboard() -->
+          </div>
+
+          <!-- Pending Requests Queue -->
+          <div class="card" style="margin-bottom: 20px;">
+            <div class="card-header">
+              <h3 class="card-title">
+                <i class="fa-solid fa-user-clock" style="color: var(--amber-500);"></i>
+                Pending Requests (Requires Action)
+              </h3>
+            </div>
+            <div id="dashboard-pending-requests">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Ride History Table -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <i class="fa-solid fa-clock-rotate-left" style="color: var(--primary-600);"></i>
+                Ride History & Verified Reviews
+              </h3>
+            </div>
+            <div style="overflow-x: auto;">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th>Date & Time</th>
+                    <th>Corridor</th>
+                    <th>Co-Traveller</th>
+                    <th>Shared Cost</th>
+                    <th>Rating</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboard-history-table-body">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- VIEW 4: Public Transit Alternatives (Requirement #9) -->
+        <div id="view-transit" class="tab-view-content" style="display: none;">
+          <div class="card" style="margin-bottom: 16px;">
+            <div class="card-header">
+              <div>
+                <h2 class="card-title">
+                  <i class="fa-solid fa-bus-simple" style="color: var(--primary-600);"></i>
+                  Public Transit & Multimodal Alternatives
+                </h2>
+                <div class="card-subtitle">
+                  No matching driver right now? Here are verified city buses, metro connections, and student campus shuttles.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="transit-list-container" class="transit-grid">
+            <!-- Dynamically populated by App.renderPublicTransitList() -->
+          </div>
+        </div>
+
+        <!-- VIEW 5: Safety Hub & Verification Center (Requirement #7) -->
+        <div id="view-safety" class="tab-view-content" style="display: none;">
+          <div class="card" style="margin-bottom: 20px;">
+            <div class="card-header">
+              <h2 class="card-title">
+                <i class="fa-solid fa-shield-check" style="color: var(--emerald-600);"></i>
+                Community Trust & Verification
+              </h2>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
+              <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 14px; text-align: center;">
+                <i class="fa-solid fa-id-card" style="color: #059669; font-size: 1.5rem; margin-bottom: 6px;"></i>
+                <div style="font-weight: 700; font-size: 0.9rem;">Govt ID Verified</div>
+                <div style="font-size: 0.72rem; color: #047857;">Aadhaar / Driving License on file</div>
+              </div>
+              <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px; text-align: center;">
+                <i class="fa-solid fa-graduation-cap" style="color: #2563eb; font-size: 1.5rem; margin-bottom: 6px;"></i>
+                <div style="font-weight: 700; font-size: 0.9rem;">Campus Email Verified</div>
+                <div style="font-size: 0.72rem; color: #1d4ed8;">Official .edu institution domain</div>
+              </div>
+              <div style="background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 8px; padding: 14px; text-align: center;">
+                <i class="fa-solid fa-phone-volume" style="color: #db2777; font-size: 1.5rem; margin-bottom: 6px;"></i>
+                <div style="font-weight: 700; font-size: 0.9rem;">Phone Verified</div>
+                <div style="font-size: 0.72rem; color: #be185d;">OTP Authenticated mobile</div>
+              </div>
+            </div>
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; font-size: 0.82rem; color: #475569;">
+              <strong style="color: var(--slate-800);">Privacy by Design:</strong> RideConnect never exposes live GPS coordinates without prior mutual agreement. Corridor pickup points are situated at public transit shelters and landmarks.
+            </div>
+          </div>
+
+          <!-- Emergency Contacts Manager -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <i class="fa-solid fa-phone-medical" style="color: var(--rose-600);"></i>
+                Registered Emergency Contacts
+              </h3>
+            </div>
+            <div id="safety-contacts-list" style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Dynamically populated -->
+            </div>
+
+            <!-- Add New Emergency Contact Mini-Form -->
+            <form id="add-emergency-contact-form" style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed #cbd5e1;" onsubmit="App.handleAddEmergencyContact(event)">
+              <div style="font-size: 0.82rem; font-weight: 700; color: #1e293b; margin-bottom: 8px;">
+                <i class="fa-solid fa-plus" style="color: var(--primary-600);"></i> Add Trusted Emergency Contact
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <input type="text" id="new-contact-name" class="form-control" placeholder="Contact Name & Relation (e.g. Sibling)" required />
+                </div>
+                <div class="form-group">
+                  <input type="tel" id="new-contact-phone" class="form-control" placeholder="Phone (e.g. +91 98765 00000)" required />
+                </div>
+              </div>
+              <button type="submit" class="btn btn-secondary" style="font-size: 0.8rem; padding: 6px 14px;">
+                <i class="fa-solid fa-user-shield"></i> Save Contact
+              </button>
+            </form>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Right Column: Interactive Map & Route Visualizer -->
+      <aside class="right-panel" aria-label="Interactive Map and Simulation">
+        <div class="map-container-card">
+          <div class="map-header-bar">
+            <div style="font-weight: 700; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-map-location-dot" style="color: var(--primary-600);"></i>
+              Route & Corridor Visualizer
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="simulated-label-badge">Simulated Real-time ETA</span>
+            </div>
+          </div>
+
+          <!-- The Leaflet Map Canvas -->
+          <div id="map"></div>
+
+          <!-- Map Footer Privacy Shield -->
+          <div class="map-footer-privacy">
+            <i class="fa-solid fa-shield-halved" style="color: #10b981;"></i>
+            <span>Privacy Consent Active: Public corridor pins only. Exact home addresses are protected.</span>
+          </div>
+        </div>
+
+        <!-- Live Vehicle ETA Card (Active during simulation) -->
+        <div class="sim-controls-card">
+          <div class="sim-info">
+            <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">
+              <i class="fa-solid fa-car-side"></i>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: #64748b; font-weight: 600;">ESTIMATED PICKUP ARRIVAL</div>
+              <div id="sim-live-eta-display" class="sim-eta-clock">-- mins</div>
+            </div>
+          </div>
+          <button class="btn btn-primary" style="font-size: 0.82rem; padding: 6px 14px;" onclick="App.simulateLiveVehicle()">
+            <i class="fa-solid fa-play"></i> Test Vehicle Simulation
+          </button>
+        </div>
+      </aside>
+
+    </div>
+
+  </main>
+
+  <!-- Mobile Bottom Navigation Bar -->
+  <nav class="mobile-nav-bar" aria-label="Mobile Navigation">
+    <button class="mobile-nav-item active" data-tab="find-ride">
+      <i class="fa-solid fa-magnifying-glass-location"></i>
+      <span>Find</span>
+    </button>
+    <button class="mobile-nav-item" data-tab="offer-ride">
+      <i class="fa-solid fa-plus-circle"></i>
+      <span>Offer</span>
+    </button>
+    <button class="mobile-nav-item" data-tab="dashboard">
+      <i class="fa-solid fa-table-columns"></i>
+      <span>Dashboard</span>
+    </button>
+    <button class="mobile-nav-item" data-tab="transit">
+      <i class="fa-solid fa-bus"></i>
+      <span>Transit</span>
+    </button>
+    <button class="mobile-nav-item" data-tab="safety">
+      <i class="fa-solid fa-shield-halved"></i>
+      <span>Safety</span>
+    </button>
+  </nav>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div>
+        <strong>RideConnect</strong> – Smart Community Ride Sharing &copy; 2026. Reducing traffic, wait times, and travel costs.
+      </div>
+      <div class="footer-links">
+        <a href="javascript:void(0)" onclick="App.runStudentDemoScenario()">Student College Demo</a>
+        <a href="javascript:void(0)" onclick="App.openFirebaseModal()">Firebase Settings</a>
+        <a href="javascript:void(0)" onclick="App.switchTab('transit')">Public Transit</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- MODAL 1: Request Ride Confirmation -->
+  <div id="ride-request-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-req-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-req-title" class="modal-title">
+          <i class="fa-solid fa-paper-plane" style="color: var(--primary-600);"></i> Send Ride Request
+        </h3>
+        <button class="modal-close-btn" data-close-modal="ride-request-modal" aria-label="Close modal">&times;</button>
+      </div>
+      <div id="ride-request-modal-body" class="modal-body">
+        <!-- Dynamically injected -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close-modal="ride-request-modal">Cancel</button>
+        <button id="btn-confirm-send-request" class="btn btn-primary">
+          <i class="fa-solid fa-check"></i> Send Request to Driver
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: User Switcher & Profile Selector / Registration -->
+  <div id="user-switcher-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="user-switcher-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="user-switcher-title" class="modal-title">
+          <i class="fa-solid fa-users" style="color: var(--primary-600);"></i> Community Profiles & Auth
+        </h3>
+        <button class="modal-close-btn" data-close-modal="user-switcher-modal" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 8px; margin-bottom: 14px; background: #f1f5f9; padding: 4px; border-radius: 8px;">
+          <button id="auth-tab-preset" class="btn btn-secondary active" style="flex: 1; font-size: 0.8rem; padding: 6px;" onclick="App.toggleAuthMode('preset')">
+            <i class="fa-solid fa-user-check"></i> Demo Profiles
+          </button>
+          <button id="auth-tab-register" class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 6px;" onclick="App.toggleAuthMode('register')">
+            <i class="fa-solid fa-user-plus"></i> Register / Login
+          </button>
+        </div>
+
+        <!-- Mode 1: Presets -->
+        <div id="auth-preset-section">
+          <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 12px;">
+            Switch active persona in 1 click to test both Passenger & Driver interactions:
+          </p>
+          <div id="user-switcher-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Mode 2: Custom Registration & Login -->
+        <div id="auth-register-section" style="display: none;">
+          <form id="custom-user-reg-form" onsubmit="App.handleCustomRegister(event)">
+            <div class="form-group">
+              <label class="form-label" for="reg-name">Full Name</label>
+              <input type="text" id="reg-name" class="form-control" placeholder="e.g. Maya Sen" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="reg-email">Email (Use .edu for Student Badge)</label>
+              <input type="email" id="reg-email" class="form-control" placeholder="maya.sen@citytech.edu.in" required />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="reg-role">Role</label>
+                <select id="reg-role" class="form-control" onchange="App.handleRoleSelectChange(this.value)">
+                  <option value="passenger" selected>Passenger (Student / Commuter)</option>
+                  <option value="driver">Driver (Vehicle Owner)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="reg-phone">Phone Number</label>
+                <input type="text" id="reg-phone" class="form-control" placeholder="+91 98765 12345" required />
+              </div>
+            </div>
+            <div id="reg-driver-vehicle-group" class="form-group" style="display: none;">
+              <label class="form-label" for="reg-vehicle">Vehicle Make & Plate</label>
+              <input type="text" id="reg-vehicle" class="form-control" placeholder="e.g. Maruti Swift (KA-05-MM-1234)" />
+            </div>
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top: 10px;">
+              <i class="fa-solid fa-user-plus"></i> Create & Login Account
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close-modal="user-switcher-modal">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: In-App Notifications -->
+  <div id="notifications-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="notif-modal-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="notif-modal-title" class="modal-title">
+          <i class="fa-regular fa-bell" style="color: var(--primary-600);"></i> Notifications
+        </h3>
+        <button class="modal-close-btn" data-close-modal="notifications-modal" aria-label="Close modal">&times;</button>
+      </div>
+      <div id="notifications-modal-list" class="modal-body">
+        <!-- Dynamically populated -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close-modal="notifications-modal">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: Emergency SOS Alert -->
+  <div id="sos-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sos-modal-title">
+    <div class="modal-dialog">
+      <div class="modal-header" style="background: #fef2f2; border-bottom: 1px solid #fee2e2;">
+        <h3 id="sos-modal-title" class="modal-title" style="color: #dc2626;">
+          <i class="fa-solid fa-triangle-exclamation"></i> Emergency Safety Assistance
+        </h3>
+        <button class="modal-close-btn" data-close-modal="sos-modal" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="background: #fff1f2; border-left: 4px solid #e11d48; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 0.85rem; color: #9f1239;">
+          <strong>Need immediate police or medical assistance?</strong> Tap 112 below. Your live trip details & GPS coordinates will be prepared automatically.
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <a href="tel:112" class="btn btn-danger btn-block" style="font-size: 1rem; padding: 12px;">
+            <i class="fa-solid fa-phone"></i> Call National Emergency (112)
+          </a>
+        </div>
+
+        <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 8px;">Your Trusted Emergency Contacts</h4>
+        <div id="sos-modal-contacts-list">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" onclick="App.triggerEmergencyBroadcast()">
+          <i class="fa-solid fa-tower-broadcast"></i> Send SMS Alert to Contacts
+        </button>
+        <button class="btn btn-secondary" data-close-modal="sos-modal">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: Trip Sharing & Live Tracking Link -->
+  <div id="share-trip-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="share-modal-title" class="modal-title">
+          <i class="fa-solid fa-share-nodes" style="color: var(--primary-600);"></i> Share Confirmed Trip
+        </h3>
+        <button class="modal-close-btn" data-close-modal="share-trip-modal" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px;">
+          Share your confirmed driver, vehicle plate, route corridor, and live safety status with friends or family:
+        </p>
+        <textarea id="share-trip-text-content" class="form-control" rows="6" readonly style="font-family: monospace; font-size: 0.8rem; background: #f8fafc;"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button id="share-copy-btn" class="btn btn-secondary">
+          <i class="fa-regular fa-copy"></i> Copy Details
+        </button>
+        <button id="share-whatsapp-btn" class="btn btn-success">
+          <i class="fa-brands fa-whatsapp"></i> Share on WhatsApp
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: Complete Ride & Rating -->
+  <div id="complete-ride-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="complete-modal-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="complete-modal-title" class="modal-title">
+          <i class="fa-solid fa-circle-check" style="color: var(--emerald-600);"></i> Complete Trip & Rate Co-Traveller
+        </h3>
+        <button class="modal-close-btn" data-close-modal="complete-ride-modal" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="text-align: center; margin-bottom: 16px;">
+          <div style="font-size: 2.2rem; color: #10b981; margin-bottom: 6px;">
+            <i class="fa-solid fa-shield-heart"></i>
+          </div>
+          <h4 style="font-size: 1.1rem;">You arrived safely at your destination!</h4>
+          <p style="font-size: 0.85rem; color: #64748b;">Rate your experience to build community trust and safety.</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="review-star-rating">Rating (Stars)</label>
+          <select id="review-star-rating" class="form-control">
+            <option value="5" selected>★★★★★ 5 Stars - Exceptional & Punctual</option>
+            <option value="4">★★★★☆ 4 Stars - Very Good Experience</option>
+            <option value="3">★★★☆☆ 3 Stars - Average</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="review-comments">Public Community Review (Optional)</label>
+          <input type="text" id="review-comments" class="form-control" placeholder="e.g. Smooth, friendly, punctual ride!" value="Great carpool experience, reached college right on time!" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close-modal="complete-ride-modal">Later</button>
+        <button id="btn-submit-ride-review" class="btn btn-success">
+          <i class="fa-solid fa-check"></i> Submit Rating & Close Trip
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: Firebase Cloud Sync Configuration -->
+  <div id="firebase-settings-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="firebase-modal-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="firebase-modal-title" class="modal-title">
+          <i class="fa-solid fa-cloud" style="color: var(--primary-600);"></i> Firebase Backend Configuration
+        </h3>
+        <button class="modal-close-btn" data-close-modal="firebase-settings-modal" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="firebase-status-badge" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem;">
+          <!-- Dynamically populated -->
+        </div>
+
+        <p style="font-size: 0.85rem; color: #475569; margin-bottom: 14px;">
+          By default, <strong>RideConnect</strong> operates in zero-setup <em>Local Community Storage Mode</em> using resilient localStorage, enabling instant testing without paid API keys.
+        </p>
+
+        <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 12px;">
+          To connect live Cloud Firestore & Firebase Auth, paste your Firebase project credentials below:
+        </p>
+
+        <div class="form-group">
+          <label class="form-label" for="fb-input-api-key">Firebase API Key</label>
+          <input type="text" id="fb-input-api-key" class="form-control" placeholder="AIzaSy..." />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="fb-input-project-id">Project ID</label>
+          <input type="text" id="fb-input-project-id" class="form-control" placeholder="rideconnect-prod" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close-modal="firebase-settings-modal">Cancel</button>
+        <button class="btn btn-primary" onclick="App.saveFirebaseCredentials()">
+          <i class="fa-solid fa-floppy-disk"></i> Save & Connect
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 8: RideConnect AI Travel Assistant (Google Gemini) -->
+  <div id="ai-assistant-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ai-modal-title">
+    <div class="modal-dialog" style="max-width: 620px;">
+      <div class="modal-header" style="background: linear-gradient(135deg, #4338ca 0%, #2563eb 100%); color: white;">
+        <h3 id="ai-modal-title" class="modal-title" style="color: white;">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> AI Travel Assistant (Google Gemini)
+        </h3>
+        <button class="modal-close-btn" data-close-modal="ai-assistant-modal" style="color: white;" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 16px;">
+        <div id="ai-key-status-banner" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 0.8rem;">
+          <!-- Dynamically populated -->
+        </div>
+
+        <div id="ai-chat-history" style="min-height: 220px; max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; padding: 4px;">
+          <div style="background: #f1f5f9; border-radius: 10px; padding: 12px; font-size: 0.85rem; max-width: 90%;">
+            <strong>RideConnect AI:</strong> Hello! I am your AI travel companion powered by Google Gemini. Ask me about college commute routes, public transit alternatives (buses & metro), fair travel cost sharing, or community safety tips!
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;">
+          <button type="button" class="chip-btn" onclick="App.askAIQuickPrompt('Best route and timing from Koramangala to City Tech University?')">🎓 College Route</button>
+          <button type="button" class="chip-btn" onclick="App.askAIQuickPrompt('What is a fair non-commercial fuel contribution for a 12km shared ride?')">💰 Fair Cost Sharing</button>
+          <button type="button" class="chip-btn" onclick="App.askAIQuickPrompt('What safety precautions should a student take when carpooling?')">🛡️ Safety Checklist</button>
+        </div>
+
+        <form id="ai-chat-form" onsubmit="App.handleAISubmit(event)" style="display: flex; gap: 8px;">
+          <input type="text" id="ai-user-input" class="form-control" placeholder="Ask AI about commute routes, fares, buses, or safety..." required />
+          <button type="submit" id="btn-ai-send" class="btn btn-primary" style="background: #4338ca; min-width: 48px;">
+            <i class="fa-solid fa-paper-plane"></i>
+          </button>
+        </form>
+      </div>
+      <div class="modal-footer" style="font-size: 0.75rem; color: #64748b; justify-content: space-between;">
+        <span><i class="fa-solid fa-lock" style="color: #10b981;"></i> API Key securely stored on server (.env)</span>
+        <button class="btn btn-secondary" data-close-modal="ai-assistant-modal" style="font-size: 0.8rem; padding: 4px 12px;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Application Logic Modules -->
+  <script src="js/mock-data.js"></script>
+  <script src="js/matching.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/api-client.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
